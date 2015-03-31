@@ -732,13 +732,16 @@ public class LOTW extends ApplicationAdapter {
 				new ScrollPane.ScrollPaneStyle(),
 				listStyle);
 		final SelectBox<Season> seasonPicker = new SelectBox(sbs);
-		seasonPicker.setItems((Season[]) G.settings.getSeasons());
-		seasonPicker.setSelected(G.settings.getSeason());
-		seasonPicker.getList().setSelected(G.settings.getSeason());
+		seasonPicker.setItems((Season[]) G.settings.getUnlockedSeasons());
+		if (G.settings.unlock) {
+			seasonPicker.setSelected(G.settings.unlockSeason);
+		} else {
+			seasonPicker.setSelected(G.settings.getSeason());
+		}
 		seasonPicker.setColor(G.colors.grey);
 		seasonPicker.getList().setColor(G.colors.grey);
 		Stack seasonStack = new Stack();
-		final Container seasonImage = new Container(new Image(G.settings.season.getIcon()));
+		final Container seasonImage = new Container(new Image(seasonPicker.getSelected().getIcon()));
 		seasonImage.setSize(32, 32);
 		seasonImage.setTouchable(Touchable.disabled);
 		seasonImage.getActor().setColor(G.getAntiColor());
@@ -748,7 +751,16 @@ public class LOTW extends ApplicationAdapter {
 			@Override
 			public void changed(ChangeEvent e, Actor a) {
 				Season s = seasonPicker.getSelected();
-				G.changeSeason(s);
+				if (s.getName().toUpperCase().equals("UNLOCK")) {
+					G.glider.score = 0;
+					G.settings.unlock = true;
+					G.settings.setSeason(G.settings.getSeasons()[0]);
+					G.updateBgColor();
+					G.lotw.resetEverything();
+				} else {
+					G.settings.unlock = false;
+					G.changeSeason(s);
+				}
 			}
 		});
 		putSettingsButton(colorTable, seasonStack, "Season.");

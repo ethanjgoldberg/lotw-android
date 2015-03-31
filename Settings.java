@@ -29,12 +29,21 @@ public class Settings extends Object {
 	enum ControlScheme {
 		TWO_TOUCH, TILT, ONE_TOUCH;
 	}
-	public void setSeason (Season s) { 
+	public boolean setSeason (Season s) { 
+		if (season == s) return false;
 		oldSeason = season;
 		season = s;
-		String val = s.toString().toUpperCase();
-		seasonVal = Seasons.valueOf(val);
+		String val = s.toString();
+		seasonVal = Seasons.valueOf(val.toUpperCase());
+		if (unlock && seasonIndex(seasonVal) > seasonLock) {
+			seasonLock = seasonIndex(seasonVal);
+		}
 		save();
+		return true;
+	}
+	public void setSeasonStart () {
+		if (! unlock) return;
+		setSeason(seasons[seasonIndex(Seasons.SUMMER)]);
 	}
 	public Season getSeason () { return season; }
 	public Star newStar (int x) { return season.newStar(x); }
@@ -88,6 +97,7 @@ public class Settings extends Object {
 		public Color getStarColor () { return starColor; }
 		public Color getGliderColor () { return gliderColor; }
 		public Texture getIcon () { return icon; }
+		public String getName () { return name; }
 		public Camera getCam () { return null; }
 		public void drawStars () {
 			Color c = new Color(getStarColor());
@@ -359,9 +369,25 @@ public class Settings extends Object {
 			G.sb.setColor(tmp);
 		}
 	}
+	class Unlock extends Space {
+		public Unlock () {
+			name = "Unlock";
+			icon = G.unlockIcon;
+		}
+	}
+	public Season unlockSeason;
 	Season[] seasons;
 	public Season[] getSeasons () {
 		return seasons;
+	}
+	public Season[] getUnlockedSeasons () {
+		if (unlockSeason == null) unlockSeason = new Unlock();
+		Season[] ret = new Season[seasonLock + 1];
+		ret[0] = unlockSeason;
+		for (int i = 1; i < seasonLock + 1; i++) {
+			ret[i] = seasons[i-1];
+		}
+		return ret;
 	}
 	enum Seasons {
 		SUMMER, FALL, WINTER, SPRING, SPACE;
@@ -424,20 +450,25 @@ public class Settings extends Object {
 	}
 
 	public int seasonIndex () {
-		if (seasonVal == Seasons.SUMMER)
+		return seasonIndex(seasonVal);
+	}
+
+	public int seasonIndex (Seasons val) {
+		if (val == Seasons.SUMMER)
 			return 0;
-		if (seasonVal == Seasons.FALL)
+		if (val == Seasons.FALL)
 			return 1;
-		if (seasonVal == Seasons.WINTER)
+		if (val == Seasons.WINTER)
 			return 2;
-		if (seasonVal == Seasons.SPRING)
+		if (val == Seasons.SPRING)
 			return 3;
-		if (seasonVal == Seasons.SPACE)
+		if (val == Seasons.SPACE)
 			return 4;
 		return -1;
 	}
 
 	public void initSeason () {
+		Gdx.app.log("", unlock + " " + seasonVal);
 		season = seasons[seasonIndex()];
 	}
 	public Season nextSeason () {
@@ -451,6 +482,14 @@ public class Settings extends Object {
 			seasonVal = Seasons.SUMMER;
 		//initSeason();
 		return seasons[seasonIndex()];
+	}
+	public boolean goToSpace () {
+		if (! unlock) return false;
+		if (! setSeason(seasons[seasonIndex(Seasons.SPACE)])) {
+			seasonLock = seasonIndex(Seasons.SPACE) + 1;
+			return false;
+		}
+		return true;
 	}
 
 	public boolean twoTouch () {
@@ -483,6 +522,9 @@ public class Settings extends Object {
 		return "Normal";
 	}
 
+	int seasonLock;
+	public Boolean unlock;
+
 	public void save () {
 		Preferences prefs = Gdx.app.getPreferences("org.anism.lotw.settings");
 		prefs.putBoolean("colorblind", colorblind);
@@ -491,7 +533,10 @@ public class Settings extends Object {
 		prefs.putBoolean("bottomOut", bottomOut);
 		prefs.putString("controls", controlScheme.name());
 		prefs.putString("season", seasonVal.name());
+		prefs.putBoolean("unlock", unlock);
 		prefs.putString("mode", mode.name());
+		prefs.putInteger("seasonLock", seasonLock);
+
 		prefs.flush();
 	}
 
@@ -502,8 +547,12 @@ public class Settings extends Object {
 		autologin = prefs.getBoolean("autologin", true);
 		bottomOut = prefs.getBoolean("bottomOut", true);
 		controlScheme = ControlScheme.valueOf(prefs.getString("controls", "TWO_TOUCH"));
-		seasonVal = Seasons.valueOf(prefs.getString("season", "SPRING"));
+		seasonVal = Seasons.valueOf(prefs.getString("season", "SUMMER"));
+		unlock = prefs.getBoolean("unlock", true);
+		if (unlock) seasonVal = Seasons.SUMMER;
+		seasonLock = prefs.getInteger("seasonLock", 0);
 		mode = Mode.valueOf(prefs.getString("mode", "NORMAL"));
+
 		initSeason();
 		setMode(mode);
 	}

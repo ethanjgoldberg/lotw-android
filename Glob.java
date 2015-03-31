@@ -92,6 +92,7 @@ public class Glob {
 	public Texture springIcon;
 	public Texture spaceIcon;
 	public Texture oceanIcon;
+	public Texture unlockIcon;
 	// logo:
 	public Texture leafLogo;
 	public Texture playWrite;
@@ -118,6 +119,10 @@ public class Glob {
 	public void startGame () {
 		glider = new Glider(this, 0);
 		resetGoodies();
+		settings.setSeasonStart();
+		lastSeasonChange = 0;
+		lastSeasonChangeT = 0.0f;
+	
 	}
 
 	public void resetGlider () {
@@ -221,6 +226,7 @@ public class Glob {
 		springIcon = image("icons/spring.png");
 		spaceIcon = image("icons/space.png");
 		oceanIcon = image("icons/ocean.png");
+		unlockIcon = image("icons/unlocked.png");
 
 		leafLogo = new Texture(Gdx.files.internal("images/leaf_logo_bright.png"));
 		leafLogo.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
@@ -373,7 +379,7 @@ public class Glob {
 
 	public float lastSeason () {
 		if (settings.oldSeason == null) return 0;
-		return (float) Math.max(0, 1 - (t - lastSeasonChange) / (seasonChangeDeltaT / 4));
+		return (float) Math.max(0, 1 - (t - lastSeasonChangeT) / (12 / 4));
 	}
 
 	public Color getGliderColor () {
@@ -480,6 +486,7 @@ public class Glob {
 			unlock(constants.hundredGrand);
 
 		goodies.clear();
+		lotw.resetEverything();
 		lotw.gameOver();
 	}
 
@@ -551,38 +558,19 @@ public class Glob {
 		return false;
 	}
 
-	float lastSeasonChange;
-	float seasonChangeDeltaT = 12;
-	public boolean timeForSeasonChange () {
-		if (t - lastSeasonChange > seasonChangeDeltaT) {
-			lastSeasonChange = t;
-			return true;
-		}
-		return false;
-	}
-
+	int lastSeasonChange = 0;
+	float lastSeasonChangeT = 0.0f;
+	int seasonChangeDelta = 5;
+	int spaceScore = seasonChangeDelta * 4;
 	public void changeSeason () {
-		if (timeForSeasonChange()) {
-			changeSeason(settings.nextSeason());
+		if (settings.unlock && glider.score - lastSeasonChange >= seasonChangeDelta) {
+			if (glider.score < spaceScore || settings.goToSpace()) {
+				lastSeasonChangeT = t;
+				lastSeasonChange += seasonChangeDelta;
+			}
+			if (glider.score < spaceScore) {
+				changeSeason(settings.nextSeason());
+			}
 		}
 	}
-
-	/*
-	public void save () {
-		glider.save();
-		goodies.save();
-
-		Preferences prefs = new Preferences("org.anism.lotw.global");
-		prefs.putFloat("t", t);
-		prefs.flush();
-	}
-
-	public void restore () {
-		glider.restore();
-		goodies.restore();
-
-		Preferences prefs = new Preferences("org.anism.lotw.global");
-		t = prefs.getFloat("t", 0);
-	}
-	*/
 }

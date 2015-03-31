@@ -104,7 +104,7 @@ public class Glider extends Object {
 
 	List<PowerUp> powersUp;
 
-	int score = 0;
+	public int score = 0;
 	int lives = 3;
 	int damages = 0;
 	int snitches = 0;
