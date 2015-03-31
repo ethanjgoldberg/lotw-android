@@ -560,7 +560,7 @@ public class Glob {
 
 	int lastSeasonChange = 0;
 	float lastSeasonChangeT = 0.0f;
-	int seasonChangeDelta = 5;
+	int seasonChangeDelta = 250;
 	int spaceScore = seasonChangeDelta * 4;
 	public void changeSeason () {
 		if (settings.unlock && glider.score - lastSeasonChange >= seasonChangeDelta) {
