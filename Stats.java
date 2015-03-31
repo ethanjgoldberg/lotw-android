@@ -10,6 +10,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import org.anism.lotw.Glider;
 import org.anism.lotw.Glob;
 import org.anism.lotw.goodies.Goody;
+import org.anism.lotw.goodies.Baddy;
 
 public class Stats {
 	class Field {
@@ -106,7 +107,7 @@ public class Stats {
 		table.row();
 		Goody gimg = new Goody(G, 0, 0, G.colors.goodyGreen);
 		Goody simg = new Goody(G, 0, 0, G.colors.goodyGold);
-		Goody bimg = new Goody(G, 0, 0, G.colors.goodyRed);
+		Goody bimg = new Baddy(G, G.colors.goodyRed);
 		table.add(gimg);
 		score.display(table, ls);
 

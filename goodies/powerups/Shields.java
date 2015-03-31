@@ -12,7 +12,9 @@ public class Shields extends PowerUp {
 		lit = false;
 	}
 
-	public void collide (Glider glider) {
+	public boolean collide (Glider glider) {
 		glider.shieldsUp();
+
+		return true;
 	}
 }

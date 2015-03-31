@@ -38,17 +38,22 @@ public class Snow extends Star {
 		this(G, x, (float) Math.random() + 2);
 	}
 
+	Vector2 vel = new Vector2();
+
 	public boolean tick (float dt, float dx) {
 		//super.tick(dt, -dx * velocity.y);
 		position.x -= dx * velocity.y;
-		position.add(velocity);
+		vel.set(velocity).scl(G.settings.speed);
+		position.add(vel);
 		velocity.x += (Math.random() - 0.5f) / 16;
 		spin += (Math.random() - 0.5f) / 32;
 		offScreen = (position.x < -size 
 				|| position.x > G.width + size);
 		rotation += spin;
 
-		return position.y < -radius;
+		return position.y < -radius
+			|| position.x < -4 * G.width
+			|| position.x > 5 * G.width;
 	}
 
 	public void draw () {

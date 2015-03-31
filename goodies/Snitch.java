@@ -14,8 +14,10 @@ public class Snitch extends Goody {
 		color = G.colors.goodyGold;
 	}
 
-	public void collide (Glider glider) {
+	public boolean collide (Glider glider) {
 		glider.catchSnitch();
 		glider.doEffect(color);
+
+		return true;
 	}
 }

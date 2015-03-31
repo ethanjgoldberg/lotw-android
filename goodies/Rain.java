@@ -8,58 +8,61 @@ import org.anism.lotw.goodies.Star;
 import org.anism.lotw.Glob;
 import org.anism.lotw.Glider;
 
-public class Snow extends Star {
-	float rotation;
-	float spin;
+public class Rain extends Star {
+	float magnitude;
+	float angle;
+	Vector2 offset;
 
-	public Snow (Glob G, int x, float vy) {
+	public Rain (Glob G, int x, float vy) {
 		super(G, x, vy);
 		if (vy > 0) vy = -vy;
-		texture = G.snowFlake();
 
-		radius = -(float) vy * (float) (1.5 + Math.random());
-		size = 2 * radius;
-		drawTrail = false;
+		velocity = new Vector2((float) Math.random(), vy);
 
-		// six fold rotational symmetry...
-		rotation = 60 * (float) Math.random();
-		spin = (float) Math.random() - 0.5f;
+		magnitude = velocity.len();
+		angle = velocity.angle();
 
-		color = new Color(1, 1, 1, 1);
-		velocity = new Vector2(0, vy / 4);
+		offset = new Vector2((float) Math.random() * 60 + 30,
+				-(float) Math.random() * 60 + 30);
 	}
 
-	public Snow (Glob G, Vector2 p) {
+	public Rain (Glob G, Vector2 p) {
 		this(G, (int) p.x);
 		position.set(p);
 	}
 
-	public Snow (Glob G, int x) {
-		this(G, x, (float) Math.random() + 2);
+	public Rain (Glob G, int x) {
+		this(G, x, 16 * (float) Math.random() + 8);
 	}
+
+	Vector2 vel = new Vector2();
 
 	public boolean tick (float dt, float dx) {
 		//super.tick(dt, -dx * velocity.y);
-		position.x -= dx * velocity.y;
-		position.add(velocity);
-		velocity.x += (Math.random() - 0.5f) / 16;
-		spin += (Math.random() - 0.5f) / 32;
-		offScreen = (position.x < -size 
-				|| position.x > G.width + size);
-		rotation += spin;
+		position.x -= dx * velocity.y / 32;
+		vel.set(velocity).scl(G.settings.speed);
+		position.add(vel);
+		offScreen = (position.x < -magnitude
+				|| position.x > G.width + magnitude);
 
-		return position.y < -radius;
+		return position.y < -magnitude
+			|| position.x < -4 * G.width
+			|| position.x > 5 * G.width;
 	}
 
 	public void draw () {
-		if (offScreen) return;
+		int px = (int) position.x;
+		int py = (int) position.y;
 
-		float px = position.x - radius;
-		float py = position.y - radius;
-
-		G.sb.draw(texture, px, py,
-				0, 0, size, size, 1, 1, rotation, 
-				0, 0, texture.getWidth(), texture.getHeight(),
-				false, false);
+		for (int i = 0; i < 20; i++) {
+			px += (int) offset.x;
+			py += (int) offset.y;
+			if (px > G.width || py < -magnitude) break;
+			if (px < 0 || py > G.height) continue;
+			G.sb.draw(G.dotTexture,
+					px, py,
+					0, 0, magnitude, 1, 1, 1, angle, 
+					0, 0, 1, 1, false, false);
+		}
 	}
 }

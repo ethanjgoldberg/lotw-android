@@ -9,7 +9,7 @@ import org.anism.lotw.Glob;
 import org.anism.lotw.Glider;
 
 public class Star extends Goody {
-	boolean oddColor;
+	float index;
 
 	public Star(Glob G, int x, float vy, Texture t) {
 		super(G, x, vy, t);
@@ -18,34 +18,16 @@ public class Star extends Goody {
 	public Star(Glob G, int x, float vy) {
 		super(G, x, vy, G.starTexture);
 
+		if (vy > 0) vy = -vy;
+
 		radius = -3 * (float) vy * (float) (0.5 + Math.random());
 		size = 2*radius;
 		drawTrail = false;
 
 		float r = (float) Math.random();
 
-		Color[] colors = {
-			new Color(1, 1, 1, 1),
-			new Color(1, 1, 1, 1),
-			new Color(1, 1, 1, 1),
-			new Color(1, 1, 1, 1),
-			new Color(1, 1, 1, 1),
-			new Color(1, 1, 1, 1),
-			new Color(1, 1, 1, 1),
-			new Color(1, 1, 1, 1),
-			new Color(1, 1, 1, 1),
-			new Color(G.colors.goodyGreen),
-			//new Color(G.colors.red),
-			new Color(G.colors.goodyGold),
-			//new Color(G.colors.blue)
-		};
-
-		color = colors[(int) Math.floor(Math.random() * colors.length)];
-		color.a = ((-(float) vy) + (float) Math.random()) / 2;
-
-		oddColor = color.r < 1 || color.g < 1 || color.b < 1;
-
 		velocity = new Vector2(0, vy / 4);
+		velocity.scl(G.settings.speed);
 	}
 
 	public Star (Glob G, Vector2 p) {
@@ -63,9 +45,10 @@ public class Star extends Goody {
 		position.add(velocity);
 		offScreen = (position.x < -size || position.x > G.width + size);
 
-		return position.y < -radius;
+		return position.y < -radius 
+			|| position.x < -4 * G.width 
+			|| position.x > 5 * G.width;
 	}
-
 
 	public void draw () {
 		if (offScreen) return;
@@ -73,13 +56,38 @@ public class Star extends Goody {
 		float px = position.x - radius;
 		float py = position.y - radius;
 
-		if (oddColor) G.sb.setColor(color);
-
 		G.sb.draw(texture, px, py, size, size);
-
-		if (oddColor) G.sb.setColor(1, 1, 1, 1);
 	}
 
-	public void collide (Glider glider) {
+	public boolean collide (Glider glider) {
+		return false;
+	}
+
+	public void setIndex (float n) {
+		index = n;
+	}
+
+	public void addX (float dx) {
+		position.x += dx;
+	}
+
+	public void setVelocity (Vector2 v) {
+		velocity.set(v);
+	}
+	public void setVelocity (float x, float y) {
+		velocity.set(x, y);
+	}
+
+	public void setSize (float s) {
+		radius = s / 2;
+		size = s;
+	}
+
+	public void addPosition (Vector2 a) {
+		position.add(a);
+	}
+
+	public boolean isStatic () {
+		return false;
 	}
 }

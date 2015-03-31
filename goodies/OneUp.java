@@ -13,8 +13,10 @@ public class OneUp extends Goody {
 		color = G.colors.goodyBlue;
 	}
 
-	public void collide (Glider glider) {
+	public boolean collide (Glider glider) {
 		glider.oneUp();
 		glider.doEffect(color);
+
+		return true;
 	}
 }

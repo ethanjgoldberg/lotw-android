@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import org.anism.lotw.goodies.*;
 import org.anism.lotw.goodies.powerups.*;
 import org.anism.lotw.Glob;
+import org.anism.lotw.Glider;
 
 public class Goodies extends Object {
 	// class should hold all the goodies, and know how to update them and collisions
@@ -16,49 +17,15 @@ public class Goodies extends Object {
 	Glob G;
 
 	List<Goody> goodies;
-	List<Goody> forDeletion;
 	//List<Star> stars;
-	Star[] stars;
-	Stack<Integer> blankStars;
 
-	float starChance = 0.05f;
 	int makeExtra = 4;
 	int extraWidth = makeExtra * 2 + 1;
-	int numStars;
 
 	public Goodies (Glob g) {
 		G = g;
 
-		saltStars();
-
 		clear();
-	}
-
-	public void saltStars () {
-		//List<Star> startStars = new ArrayList<Star>();
-		numStars = (int) ((8 / G.settings.starVel()) * G.height * starChance * extraWidth);
-		blankStars = new Stack<Integer>();
-
-		for (int i = 0; i < numStars; i++) {
-			blankStars.push(i);
-		}
-
-		stars = new Star[numStars];
-		for (int i = 0; i < numStars / 2; i++) {
-			//stars.add(
-			stars[blankStars.pop()] = newStar(
-					new Vector2((int) (extraWidth * G.width * 
-							Math.random()) - makeExtra * G.width,
-						(int) (G.height * Math.random())));
-		}
-		/*
-		int size = 2 * (int) Math.pow(2, Math.floor(Math.log(numStars) / Math.log(2)));
-		stars = new stars[size];
-		STARS = 0;
-		for (Iterator it = startStars.iterator(); it.hasNext(); ) {
-			stars[++STARS] = it.next();
-		}
-		*/
 	}
 
 	public void tick (float dt) {
@@ -70,15 +37,6 @@ public class Goodies extends Object {
 	}
 
 	public void tick (float dt, boolean spawn, float dx) {
-		for (int i = 0; i < numStars; i++) {
-			Star s = stars[i];
-			if (s == null) continue;
-			if (s.tick(dt, dx)) {
-				stars[i] = null;
-				blankStars.push(i);
-			}
-		}
-
 		/*
 		List<Star> starsTmp = new ArrayList<Star>();
 		for (Iterator it = stars.iterator(); it.hasNext(); ) {
@@ -96,22 +54,16 @@ public class Goodies extends Object {
 			boolean d = false;
 			if (g.tick(dt, dx)) {
 				d = true;
-				//forDeletion.add(g);
 
 				if (g.points > 0) {
 					if (G.settings.heaven()) {
 						G.glider.damage();
 					}
 				}
-
-				if (G.settings.hell() && g.points < 0) {
-					G.glider.givePoints(-g.points);
-				}
 			}
-			if (G.glider.collideWith(g)) {
-				g.collide(G.glider);
-				d = true;
-				//forDeletion.add(g);
+			if (G.glider.collideWith(g, true)) {
+				if (g.collide(G.glider))
+					d = true;
 			}
 			if ( ! d ) {
 				goodiesTmp.add(g);
@@ -128,31 +80,16 @@ public class Goodies extends Object {
 				chance--;
 			}
 		}
-
-		double chance = extraWidth * starChance;
-		while (Math.random() < chance) {
-			chance--;
-			stars[blankStars.pop()] = newStar();
-		}
 		/*
-		if (Math.random() < 0.01) {
-			Star s = newShootingStar();
-			stars.add(s);
+		   if (Math.random() < 0.01) {
+		   Star s = newShootingStar();
+		   stars.add(s);
 		}
 		*/
 	}
 
-	public void clean () {
-		for (Iterator it = forDeletion.iterator(); it.hasNext(); ) {
-			Goody g = (Goody) it.next();
-			goodies.remove(g);
-		}
-		forDeletion = new ArrayList<Goody>();
-	}
-
 	public void clear () {
 		goodies = new ArrayList<Goody>();
-		forDeletion = new ArrayList<Goody>();
 	}
 
 	public PowerUp newPowerUp (int x, float vy) {
@@ -166,28 +103,14 @@ public class Goodies extends Object {
 		return new ShootingStar(G, x, y);
 	}
 
-	public Star newStar () {
-		int x = (int) Math.floor(Math.random() * (extraWidth * G.width - G.size)) + G.size / 2 - makeExtra * G.width;
-
-		if (G.settings.space())
-			return new Star(G, x);
-		if (G.settings.winter())
-			return new Snow(G, x);
-		return new Star(G, x);
-	}
-
-	public Star newStar (Vector2 p) {
-		if (G.settings.space())
-			return new Star(G, p);
-		if (G.settings.winter())
-			return new Snow(G, p);
-		return new Star(G, p);
-	}
-
 	public Goody newGoody () {
 		int x = (int) Math.floor(Math.random() * (extraWidth * G.width - G.lightSize)) + G.lightSize/2 - makeExtra * G.width;
 		int vy = (int) Math.floor(Math.random() * 3) + 1;
 		vy = -vy;
+
+		// hellMarker:
+		if (G.settings.hell() && G.timeForHellMarker())
+			return new HellMarker(G);
 
 		// extra life:
 		if (Math.random() < G.glider.livesChance())
@@ -196,6 +119,24 @@ public class Goodies extends Object {
 		// snitch:
 		if (G.settings.normal() && Math.random() < 0.001)
 			return new Snitch(G, x, G.goodyTexture);
+
+		// goal:
+		/*
+		if (Math.random() < 0.05) {
+			Goal g = new Goal(G, x, -1, null);
+			float w = g.getWidth();
+			goodies.add(g);
+			goodies.add(new Baddy(G, x, -1, -1, g));
+			if (Math.random() < 0.3) {
+				Baddy b = new Baddy(G, x + (int) (w / 2), -1, null);
+				b.getPosition().y += (int) (w / 2);
+				goodies.add(b);
+
+				g.setPoints(10);
+			}
+			return new Baddy(G, x + (int) w, -1, 1, g);
+		}
+		*/
 
 		// power up (shield):
 		if (!G.settings.heaven() && Math.random() < 0.015)
@@ -211,23 +152,6 @@ public class Goodies extends Object {
 
 		// baddy:
 		return new Baddy(G, x, vy, G.goodyTexture);
-	}
-
-	public void drawStars () {
-		G.sb.begin();
-		G.sb.setColor(1, 1, 1, 1);
-		for (int i = 0; i < numStars; i++) {
-			Star s = stars[i];
-			if (s == null) continue;
-			s.draw();
-		}
-		/*
-		for (Iterator it = stars.iterator(); it.hasNext(); ) {
-			Star s = (Star) it.next();
-			s.draw();
-		}
-		*/
-		G.sb.end();
 	}
 
 	public void draw () {
@@ -247,7 +171,7 @@ public class Goodies extends Object {
 		*/
 	}
 
-		/*
+	/*
 	public void save () {
 		Preferences prefs = new Preferences("org.anism.lotw.goodies");
 		prefs.putInteger("goodies.size", goodies.size());

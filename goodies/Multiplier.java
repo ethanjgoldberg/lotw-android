@@ -34,8 +34,10 @@ public class Multiplier extends Goody {
 	}
 	*/
 
-	public void collide (Glider glider) {
+	public boolean collide (Glider glider) {
 		glider.multiplierUp();
 		glider.doEffect(color);
+
+		return true;
 	}
 }

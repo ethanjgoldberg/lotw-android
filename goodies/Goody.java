@@ -51,7 +51,7 @@ public class Goody extends Actor {
 
 		color = new Color(G.colors.goodyGreen);
 
-		position = new Vector2(x, G.height + 20 * G.unit);
+		position = new Vector2(x, G.height + 20 * G.unit + size);
 		velocity = new Vector2(0, speed * G.unit);
 		velocity.scl(G.settings.speed);
 
@@ -70,9 +70,11 @@ public class Goody extends Actor {
 		return position.y < -G.height;
 	}
 
-	public void collide (Glider glider) {
+	public boolean collide (Glider glider) {
 		glider.givePoints(points);
 		glider.doEffect(color);
+
+		return true;
 	}
 
 	public void drawLight () {
@@ -92,6 +94,10 @@ public class Goody extends Actor {
 
 	public int getPoints () {
 		return points;
+	}
+
+	public void setPoints (int p) {
+		points = p;
 	}
 
 	@Override
@@ -160,5 +166,9 @@ public class Goody extends Actor {
 
 	public float getRadius2 () {
 		return radius * radius;
+	}
+
+	public void setVelocity (Vector2 v) {
+		velocity.set(v);
 	}
 }

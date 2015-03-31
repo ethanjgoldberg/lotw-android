@@ -8,10 +8,16 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.ui.Container;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
+import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.ButtonGroup;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.CheckBox.CheckBoxStyle;
+import com.badlogic.gdx.scenes.scene2d.ui.SelectBox;
+import com.badlogic.gdx.scenes.scene2d.ui.SelectBox.SelectBoxStyle;
+import com.badlogic.gdx.scenes.scene2d.ui.List.ListStyle;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle;
@@ -22,6 +28,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Button.ButtonStyle;
 import com.badlogic.gdx.scenes.scene2d.ui.Button;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.NinePatchDrawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -36,6 +43,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener.ChangeEvent;
 import org.anism.lotw.Glob;
 import org.anism.lotw.Stats;
 import org.anism.lotw.goodies.Goody;
+import org.anism.lotw.goodies.Baddy;
 
 public class LOTW extends ApplicationAdapter {
 	Glob G;
@@ -43,8 +51,6 @@ public class LOTW extends ApplicationAdapter {
 	class TouchStage extends Stage {
 		@Override
 		public boolean touchDown (int x, int y, int pointer, int button) {
-			Gdx.app.log("hit", "" + hit(x, y, false));
-
 			super.touchDown(x, y, pointer, button);
 			G.glider.touchDown(x);
 			return true;
@@ -69,6 +75,7 @@ public class LOTW extends ApplicationAdapter {
 	Stage settings;
 	Stage colorSettings;
 	Stage controlSettings;
+	Stage modeSettings;
 	Stage loginSettings;
 	Stage bottomSettings;
 
@@ -99,6 +106,10 @@ public class LOTW extends ApplicationAdapter {
 		actionResolver = a;
 	}
 
+	public boolean playing () {
+		return current == game;
+	}
+
 	public void togglePauseButtons () {
 		resumeButton.setVisible(!resumeButton.isVisible());
 		exitButton.setVisible(!exitButton.isVisible());
@@ -113,6 +124,7 @@ public class LOTW extends ApplicationAdapter {
 		if (current == over || current == settings
 				|| current == colorSettings
 				|| current == controlSettings
+				|| current == modeSettings
 				|| current == loginSettings
 				|| current == bottomSettings) {
 			setStage(instructions);
@@ -129,8 +141,14 @@ public class LOTW extends ApplicationAdapter {
 	}
 
 	public void setStage (Stage s) {
+		setStage(s, true);
+	}
+	public void setStage (Stage s, boolean resetGlider) {
 		current = s;
-		G.resetGlider();
+		if (current == game) G.startGame();
+		if (resetGlider) G.resetGlider();
+		else G.glider.resetLives();
+		G.resetGoodies();
 		Gdx.input.setInputProcessor(current);
 	}
 
@@ -146,23 +164,7 @@ public class LOTW extends ApplicationAdapter {
 		s.addActor(goLogo);
 	}
 
-	public void gameOver () {
-		// first, talk to google:
-		if (actionResolver.getSignedInGPGS()) {
-			actionResolver.submitScoreGPGS(G.glider.score, G.constants.scoreBoard);
-			actionResolver.submitScoreGPGS(G.glider.damages,
-					G.constants.damageBoard);
-			actionResolver.submitScoreGPGS(G.glider.maxCombo,
-					G.constants.comboBoard);
-			if (G.glider.score > 10)
-				actionResolver.unlockAchievementGPGS(G.constants.decade);
-			if (G.glider.score > 100)
-				actionResolver.unlockAchievementGPGS(G.constants.century);
-			if (G.glider.score > 1000)
-				actionResolver.unlockAchievementGPGS(G.constants.millenium);
-		}
-		
-		// then, make the screen:
+	public void initGameOver (boolean fade) {
 		over.clear();
 
 		//putLogo(over);
@@ -172,6 +174,10 @@ public class LOTW extends ApplicationAdapter {
 
 		goTable.add(new Label("Game Over", labelStyle)).pad(4).colspan(2);
 		goTable.row();
+		if (G.settings.hell()) {
+			goTable.add(new Label("Hell Mode", labelStyleSmall)).pad(4).colspan(2);
+			goTable.row();
+		}
 		goTable.add(new Goody(G, 0, 0, G.colors.goodyGreen)).pad(4);
 		goTable.add(new Label(Integer.toString(G.glider.score), labelStyle)).pad(4);
 		goTable.row();
@@ -179,110 +185,49 @@ public class LOTW extends ApplicationAdapter {
 		goTable.add(new Label(Integer.toString(G.glider.snitches), labelStyle))
 			.pad(4);
 		goTable.row();
-		goTable.add(new Goody(G, 0, 0, G.colors.goodyRed)).pad(4);
+		goTable.add(new Baddy(G, G.colors.goodyRed)).pad(4);
 		goTable.add(new Label(Integer.toString(G.glider.damages), labelStyle)).pad(4);
 		goTable.row();
 
-		goTable.add().pad(4);
-		goTable.row();
+		if (G.settings.normal()) {
+			goTable.add().pad(4);
+			goTable.row();
 
-		goTable.add(new Label(G.glider.maxCombo + " combo", labelStyle))
-			.pad(4).colspan(2);
-		goTable.row();
+			goTable.add(new Label(G.glider.maxCombo + " combo", labelStyle))
+				.pad(4).colspan(2);
+			goTable.row();
+		}
 
-		goTable.addAction(Actions.alpha(0));
-		goTable.addAction(Actions.delay(1, Actions.fadeIn(3)));
+		if (fade) {
+			goTable.addAction(Actions.alpha(0));
+			goTable.addAction(Actions.delay(1, Actions.fadeIn(3)));
+		}
 		over.addActor(goTable);
 		putActionBar(over);
-
-		/*
-		float d = 2f;
-		addLabel(over, "Game Over", 0, G.height/4, 0, tr)
-			.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
-			*/
-		/*
-		addLabel(over, G.settings.modeString(), 0, G.height/4 - 24, 0, tr)
-			.addAction(Actions.delay(d + 1, Actions.fadeIn(fadeDur)));
-			*/
-		/*
-
-		d += 2;
-
-		float y = 40f;
-		float x = 20f;
-		float adjust = -G.size * (2.75f);
-		addImage(over, G.goodyTexture, G.colors.green,
-				-x, y, G.size/dpi, G.size/dpi)
-			.addAction(Actions.sequence(Actions.alpha(0),
-						Actions.delay(d, Actions.fadeIn(fadeDur))));
-		addLabel(over, Integer.toString(G.glider.score), x, y, (int) adjust, tr)
-			.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
-
-		y -= G.size * 2;
-		addImage(over, G.goodyTexture, G.colors.gold,
-				-x, y, G.size/dpi, G.size/dpi)
-			.addAction(Actions.sequence(Actions.alpha(0),
-						Actions.delay(d, Actions.fadeIn(fadeDur))));
-		addLabel(over, Integer.toString(G.glider.snitches), x, y, (int) adjust, tr)
-			.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
-
-		y -= G.size * 2;
-		addImage(over, G.goodyTexture, G.colors.red,
-				-x, y, G.size/dpi, G.size/dpi)
-			.addAction(Actions.sequence(Actions.alpha(0),
-						Actions.delay(d, Actions.fadeIn(fadeDur))));
-		addLabel(over, Integer.toString(G.glider.damages), x, y, (int) adjust, tr)
-			.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
-
-		addLabel(over, G.glider.maxCombo + " combo", 0, y - 40, (int) adjust, tr)
-			.addAction(Actions.delay(d+1, Actions.fadeIn(fadeDur)));
-
-		d += 2f;
-		*/
-
-		/*
-		addIconButton(over, G.leaderIcon,
-				new ClickListener() {
-					@Override
-					public void clicked (InputEvent e, float x, float y) { 
-						actionResolver.getLeaderboardGPGS(G.constants.scoreBoard);
-					}
-				},
-				48, -G.height/2/dpi + 48,
-				88, 88).setColor(G.colors.gold);
-
-		addIconButton(over, G.achieveIcon,
-				new ClickListener() {
-					@Override
-					public void clicked (InputEvent e, float x, float y) {
-						actionResolver.getAchievementsGPGS();
-					}
-				},
-				-48, -G.height/2/dpi + 48,
-				88, 88).setColor(G.colors.blue);
-
-		addIconButton(over, G.backIcon,
-				new ClickListener() {
-					@Override
-					public void clicked (InputEvent e, float x, float y) {
-						setStage(instructions);
-					}
-				},
-				-G.width/2/dpi + 96, -G.height/2/dpi + 48,
-				184, 88).setColor(G.colors.red);
-
-		addIconButton(over, G.playIcon,
-				new ClickListener() {
-					@Override
-					public void clicked (InputEvent e, float x, float y) {
-						setStage(game);
-					}
-				},
-				G.width/2/dpi - 96, -G.height/2/dpi + 48,
-				184, 88).setColor(G.colors.green);
-				*/
+	}
 		
-		setStage(over);
+	public void gameOver () {
+		// first, talk to google:
+		if (actionResolver.getSignedInGPGS()) {
+			if (G.settings.normal())
+				actionResolver.submitScoreGPGS(G.glider.score,
+						G.constants.scoreBoard);
+			if (G.settings.hell())
+				actionResolver.submitScoreGPGS(G.glider.score,
+						G.constants.hellBoard);
+
+			if (G.glider.score > 10)
+				actionResolver.unlockAchievementGPGS(G.constants.decade);
+			if (G.glider.score > 100)
+				actionResolver.unlockAchievementGPGS(G.constants.century);
+			if (G.glider.score > 1000)
+				actionResolver.unlockAchievementGPGS(G.constants.millenium);
+		}
+		
+		// then, make the screen:
+		initGameOver(true);
+
+		setStage(over, false);
 	}
 
 	public TextButton addButton (Stage src, final Stage dest, String text, float cx, float cy, float w, float h) {
@@ -328,7 +273,7 @@ public class LOTW extends ApplicationAdapter {
 		button.setPosition(G.width / 2 + cx * dpi - button.getWidth()/2,
 				G.height/2 + cy * dpi - button.getHeight()/2);
 		button.addListener(cl);
-		Color c = new Color(G.antiColor());
+		Color c = new Color(G.getAntiColor());
 		c.a = 1;
 		button.getImage().setColor(c);
 
@@ -352,6 +297,14 @@ public class LOTW extends ApplicationAdapter {
 		return image;
 	}
 
+	public Goody addDumbBaddy (Stage src, Color color, float cx, float cy) {
+		Goody g = new Baddy(G, new Color(color));
+		g.setPosition(G.width/2 + cx*dpi - G.size/2, G.height/2 + cy*dpi - G.size/2);
+		src.addActor(g);
+
+		return g;
+	}
+
 	public Goody addDumbGoody (Stage src, Color color, float cx, float cy) {
 		Goody g = new Goody(G, cx, cy, new Color(color));
 		src.addActor(g);
@@ -360,9 +313,9 @@ public class LOTW extends ApplicationAdapter {
 	}
 
 	public Label addLabel (Stage src, String lbl, float cx, float cy, float h, Color c) {
-		Label label = new Label(lbl, new Label.LabelStyle(G.roboto24, G.antiColor()));
+		Label label = new Label(lbl, new Label.LabelStyle(G.roboto24, G.getAntiColor()));
 		TextBounds tb = label.getTextBounds();
-		label.setPosition(G.width/2 + cx * dpi - tb.width/2, G.height/2 + cy * dpi - h * dpi/2 - 2*tb.height);
+		label.setPosition(G.width/2 + cx * dpi - tb.width/2, G.height/2 + cy * dpi - h * dpi/2 - tb.height / 2);
 		label.setAlignment(Align.bottom | Align.center);
 		label.setColor(c);
 
@@ -372,7 +325,7 @@ public class LOTW extends ApplicationAdapter {
 	}
 
 	public Label addLabel (Stage src, String lbl, float cx, float cy, float h) {
-		return addLabel(src, lbl, cx, cy, h, G.antiColor());
+		return addLabel(src, lbl, cx, cy, h, G.getAntiColor());
 	}
 
 	Label toasting;
@@ -381,8 +334,8 @@ public class LOTW extends ApplicationAdapter {
 		if (toasting != null) {
 			toasting.addAction(Actions.removeActor());
 		}
-		toasting = addLabel(src, t, cx, cy, -48, G.antiColor());
-		toasting.setStyle(new LabelStyle(G.roboto24, G.antiColor()));
+		toasting = addLabel(src, t, cx, cy, -48, G.getAntiColor());
+		toasting.setStyle(new LabelStyle(G.roboto24, G.getAntiColor()));
 		toasting.addAction(Actions.delay(1, Actions.fadeOut(1)));
 	}
 
@@ -392,6 +345,13 @@ public class LOTW extends ApplicationAdapter {
 		} else {
 			Gdx.app.log("TOAST", t);
 		}
+	}
+
+	public void newBest (int time) {
+		addLabel(over, "New " + (time == 0? "Daily": time == 1? "Weekly": "All Time") + "\nHigh Score!", G.width / 4 / dpi, 0, 0)
+			.addAction(Actions.forever(Actions.sequence(
+							Actions.alpha(0.125f, 2 * fadeDur),
+							Actions.fadeIn(2 * fadeDur))));
 	}
 
 	public void seeStats () {
@@ -451,9 +411,11 @@ public class LOTW extends ApplicationAdapter {
 		Table inTable = new Table();
 		inTable.defaults().pad(4 * dpi).width(buttonWidth)
 			.height(settingsButtonHeight);
-		inTable.add(addButton(null, colorSettings, "Colorblind", 0, 0, 0, 0));
-		inTable.row();
 		inTable.add(addButton(null, controlSettings, "Controls", 0, 0, 0, 0));
+		inTable.row();
+		inTable.add(addButton(null, colorSettings, "Display", 0, 0, 0, 0));
+		inTable.row();
+		inTable.add(addButton(null, modeSettings, "Mode", 0, 0, 0, 0));
 		inTable.row();
 		inTable.add(addButton(null, loginSettings, "Online", 0, 0, 0, 0));
 		inTable.row();
@@ -480,7 +442,7 @@ public class LOTW extends ApplicationAdapter {
 		return table;
 	}
 	
-	public void putSettingsButton (Table table, Button button, String text) {
+	public void putSettingsButton (Table table, Actor button, String text) {
 		table.add(button).width(88*dpi).pad(4*dpi);
 		Label label = new Label(text, labelStyleSmall);
 		label.setWrap(true);
@@ -595,7 +557,59 @@ public class LOTW extends ApplicationAdapter {
 		NinePatch buttonPatchDown = new NinePatch(downTexture, 11, 11, 11, 11);
 		*/
 
-		Color fullAnti = new Color(G.antiColor());
+		//intro = new Stage();
+		settings = new Stage();
+		colorSettings = new Stage();
+		controlSettings = new Stage();
+		modeSettings = new Stage();
+		loginSettings = new Stage();
+		bottomSettings = new Stage();
+
+		about = new TouchStage();
+		instructions = new TouchStage();
+		statistics = new TouchStage();
+		game = new TouchStage() {
+			@Override
+			public void draw () {
+				G.tick(true, true);
+				G.input(true);
+				G.clear();
+				G.draw();
+				super.act();
+				super.draw();
+				Gdx.gl.glEnable(GL20.GL_BLEND);
+			}
+		};
+		over = new TouchStage();
+
+		initEverything();
+
+		setStage(instructions);
+	}
+
+	public void resetEverything () {
+		clearEverything();
+		initEverything();
+		if (current == over)
+			initGameOver(false);
+	}
+
+	public void clearEverything () {
+		settings.clear();
+		colorSettings.clear();
+		controlSettings.clear();
+		modeSettings.clear();
+		loginSettings.clear();
+		bottomSettings.clear();
+		statistics.clear();
+		instructions.clear();
+		game.clear();
+		over.clear();
+		about.clear();
+	}
+
+	public void initEverything () {
+		Color fullAnti = new Color(G.getAntiColor());
 		fullAnti.a = 1;
 
 		Texture upTexture = new Texture(Gdx.files.internal("images/grey_button_up.png"));
@@ -606,37 +620,12 @@ public class LOTW extends ApplicationAdapter {
 		NinePatchDrawable npdUp = new NinePatchDrawable(buttonPatchUp);
 		NinePatchDrawable npdDown = new NinePatchDrawable(buttonPatchDown);
 		textButtonStyle = new TextButton.TextButtonStyle(npdUp, npdDown, npdUp, G.roboto16);
-		textButtonStyle.fontColor = G.antiColor();
+		textButtonStyle.fontColor = new Color(G.getAntiColor());
+		textButtonStyle.fontColor.a = 1;
 		buttonStyle = new ButtonStyle(npdUp, npdDown, npdUp);
 		
-		labelStyle = new Label.LabelStyle(G.roboto24, G.antiColor());
-		labelStyleSmall = new Label.LabelStyle(G.roboto16, G.antiColor());
-
-		//intro = new Stage();
-		settings = new Stage();
-		colorSettings = new Stage();
-		controlSettings = new Stage();
-		loginSettings = new Stage();
-		bottomSettings = new Stage();
-
-		about = new TouchStage();
-		instructions = new TouchStage();
-		statistics = new TouchStage();
-		game = new TouchStage() {
-			@Override
-			public void draw () {
-				G.tick(true);
-				G.input(true);
-				G.clear();
-				G.draw();
-				super.act();
-				super.draw();
-				G.clean();
-				Gdx.gl.glEnable(GL20.GL_BLEND);
-			}
-		};
-		over = new TouchStage();
-
+		labelStyle = new Label.LabelStyle(G.roboto24, G.getAntiColor());
+		labelStyleSmall = new Label.LabelStyle(G.roboto16, G.getAntiColor());
 		resumeButton = addIconButton(game, G.playIcon,
 				new ClickListener() {
 					@Override
@@ -735,6 +724,34 @@ public class LOTW extends ApplicationAdapter {
 		colorButton.setColor(Math.random() > 0.5? G.colors.green: G.colors.red);
 		colorButton.getImage().setColor(fullAnti);
 		colorButton.setChecked(G.settings.colorblind);
+		ListStyle listStyle = new ListStyle(G.roboto16, G.getAntiColor(), G.getAntiColor(),
+				npdDown);
+		listStyle.background = npdUp;
+		SelectBoxStyle sbs = new SelectBoxStyle(G.roboto16, 
+				new Color(0x00000000), npdUp,
+				new ScrollPane.ScrollPaneStyle(),
+				listStyle);
+		final SelectBox<Season> seasonPicker = new SelectBox(sbs);
+		seasonPicker.setItems((Season[]) G.settings.getSeasons());
+		seasonPicker.setSelected(G.settings.getSeason());
+		seasonPicker.getList().setSelected(G.settings.getSeason());
+		seasonPicker.setColor(G.colors.grey);
+		seasonPicker.getList().setColor(G.colors.grey);
+		Stack seasonStack = new Stack();
+		final Container seasonImage = new Container(new Image(G.settings.season.getIcon()));
+		seasonImage.setSize(32, 32);
+		seasonImage.setTouchable(Touchable.disabled);
+		seasonImage.getActor().setColor(G.getAntiColor());
+		seasonStack.add(seasonPicker);
+		seasonStack.add(seasonImage);
+		seasonPicker.addListener(new ChangeListener() {
+			@Override
+			public void changed(ChangeEvent e, Actor a) {
+				Season s = seasonPicker.getSelected();
+				G.changeSeason(s);
+			}
+		});
+		putSettingsButton(colorTable, seasonStack, "Season.");
 		CheckBox ninjaButton = new CheckBox("", cbs);
 		ninjaButton.addListener(new ClickListener () {
 			@Override
@@ -846,9 +863,40 @@ public class LOTW extends ApplicationAdapter {
 		putSettingsButton(controlTable, tiltControls, "Tilt your device.");
 		putSettingsButton(controlTable, dragControls, "Touch and drag.");
 
+		// mode settings:
+		Table modeTable = makeSettingsTable("Mode");
+		CheckBox hellMode = new CheckBox("", cbs);
+		hellMode.setColor(G.colors.red);
+		hellMode.getImage().setColor(fullAnti);
+		hellMode.setChecked(G.settings.hell());
+		hellMode.addListener(new ClickListener() {
+				@Override
+				public void clicked (InputEvent e, float x, float y) {
+					G.settings.setMode(-1);
+				}
+			});
+		CheckBox normalMode = new CheckBox("", cbs);
+		normalMode.setColor(G.colors.grey);
+		normalMode.getImage().setColor(fullAnti);
+		normalMode.setChecked(G.settings.normal());
+		normalMode.addListener(new ClickListener() {
+				@Override
+				public void clicked (InputEvent e, float x, float y) {
+					G.settings.setMode(0);
+				}
+			});
+		ButtonGroup modeGroup = new ButtonGroup(hellMode, normalMode);
+		modeGroup.setMaxCheckCount(1);
+		modeGroup.setMinCheckCount(1);
+		modeGroup.setUncheckLast(true);
+		putSettingsButton(modeTable, normalMode,
+				"Normal mode: catch orbs for points.");
+		putSettingsButton(modeTable, hellMode, "Hell mode: dodge red orbs.");
+
 		putActionBar(settings);
 		putActionBar(colorSettings);
 		putActionBar(controlSettings);
+		putActionBar(modeSettings);
 		putActionBar(loginSettings);
 		putActionBar(bottomSettings);
 
@@ -859,6 +907,8 @@ public class LOTW extends ApplicationAdapter {
 		controlSettings.addActor(controlTable);
 		putSettingsMenu(loginSettings);
 		loginSettings.addActor(loginTable);
+		putSettingsMenu(modeSettings);
+		modeSettings.addActor(modeTable);
 		putSettingsMenu(bottomSettings);
 		bottomSettings.addActor(bottomTable);
 
@@ -999,23 +1049,23 @@ public class LOTW extends ApplicationAdapter {
 		
 		//delay
 		float d = 0f;
-		addLabel(instructions, "This is your glider.", 0, G.height/2/dpi - 60, 8, tr)
+		addLabel(instructions, "This is your glider.", 0, G.height/2/dpi - 96, 8, tr)
 			.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
 		// wait two seconds:
 		d += 2.5;
-		addLabel(instructions, "Touch the screen", 0, G.height/2/dpi - 100, 8, tr)
+		addLabel(instructions, "Touch the screen", 0, G.height/2/dpi - 136, 8, tr)
 			.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
 		d += 1;
-		addLabel(instructions, "on the left,", -G.width/4/dpi, G.height/2/dpi-130, 8, tr)
+		addLabel(instructions, "on the left,", -G.width/4/dpi, G.height/2/dpi-166, 8, tr)
 			.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
 		d += 1.5;
-		addLabel(instructions, "or the right.", G.width/4/dpi, G.height/2/dpi-130, 8, tr)
+		addLabel(instructions, "or the right.", G.width/4/dpi, G.height/2/dpi-166, 8, tr)
 			.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
 
 		d += 3;
 		int pickUpOffset = G.size * 2;
 		addLabel(instructions, "Catch these,", 
-				-G.width/4/dpi, -G.height/6/dpi + pickUpOffset, G.size*2/dpi, tr)
+				-G.width/4/dpi, -G.height/6/dpi, G.size*2/dpi, tr)
 			.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
 		Goody i;
 		d += 1.5;
@@ -1049,10 +1099,10 @@ public class LOTW extends ApplicationAdapter {
 
 		d += 1.5;
 		addLabel(instructions, "not these.",
-				G.width/4/dpi, -G.height/6/dpi + pickUpOffset, G.size*2/dpi, tr)
+				G.width/4/dpi, -G.height/6/dpi, G.size*2/dpi, tr)
 			.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
 		d += 2;
-		i = addDumbGoody(instructions, r,
+		i = addDumbBaddy(instructions, r,
 				G.width/4/dpi, -G.height/6/dpi + pickUpOffset);
 		i.addAction(Actions.delay(d, Actions.alpha(1)));
 		//bounce(i, 0.75f, 8, 0.33f, 8);
@@ -1081,7 +1131,7 @@ public class LOTW extends ApplicationAdapter {
 
 		d += 2;
 
-		Color c = new Color(G.antiColor());
+		Color c = new Color(G.getAntiColor());
 		c.a = 0;
 		addImage(instructions, G.playWrite, c,
 				G.width/2/dpi - 3*buttonWidth/2/dpi - 8, -G.height/2/dpi + 48,
@@ -1100,8 +1150,6 @@ public class LOTW extends ApplicationAdapter {
 		b1.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
 		b2.addAction(Actions.delay(d, Actions.fadeIn(fadeDur)));
 				*/
-
-		setStage(instructions);
 	}
 
 	public void bounce (Actor a, float delay, float every, float dur, float h) {
@@ -1121,21 +1169,27 @@ public class LOTW extends ApplicationAdapter {
 		if (current != game) {
 			G.clear();
 			Gdx.gl.glEnable(GL20.GL_BLEND);
-			G.tick(false);
 			G.input(false);
-			G.goodies.drawStars();
+			G.sb.begin();
+			G.settings.drawStars();
+			G.sb.end();
 			Gdx.gl.glEnable(GL20.GL_BLEND);
 			//G.glider.draw(new Color(0, 0, 0, .5f));
 			if (current != settings && current != statistics
 					&& current != colorSettings
 					&& current != controlSettings
+					&& current != modeSettings
 					&& current != loginSettings
 					&& current != bottomSettings) {
+				G.tick(false, true);
 				G.glider.draw();
+			} else {
+				G.tick(false, false);
 			}
 		}
 		current.act(dt);
 		current.draw();
+		G.changeSeason();
 
 		/*
 		G.tick();

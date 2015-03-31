@@ -58,52 +58,10 @@ public class Glider extends Object {
 				if (left > -halfWidth)
 					G.sb.draw(G.dotRegion, boxWidth, boxWidth, m);
 				if (right < halfWidth) {
-					m.translate(right - left, 0);
+					m.translate(right - left - boxWidth, 0);
 					G.sb.draw(G.dotRegion, boxWidth, boxWidth, m);
 				}
 			}
-		}
-
-		public void draw (Vector2 e1, Vector2 e2, float height, Color clear) {
-			Vector2 edge1 = new Vector2(e1);
-			Vector2 edge2 = new Vector2(e2);
-			Vector2 pos = new Vector2(edge2);
-			pos.add(edge1).scl(0.5f);
-			pos.lerp(edge1, position);
-			float p = Math.abs(position);
-
-			edge1.sub(pos);
-			float l = Math.min(width, edge1.len());
-			edge1.nor().scl(l).add(pos);
-
-			edge2.sub(pos);
-			l = Math.min(width, edge2.len());
-			edge2.nor().scl(l).add(pos);
-
-			Color c = new Color(color);
-			c.a = clear.a;
-			G.sr.setColor(c);
-
-			G.sr.rectLine(edge1, edge2, height);
-
-			/*
-			if (width - size <= 0) return;
-
-			G.sr.setColor(clear);
-
-			edge1.set(e1);
-			edge2.set(e2);
-
-			edge1.sub(pos);
-			l = Math.min(width - size, edge1.len());
-			edge1.nor().scl(l).add(pos);
-
-			edge2.sub(pos);
-			l = Math.min(width - size, edge2.len());
-			edge2.nor().scl(l).add(pos);
-
-			G.sr.rectLine(edge1, edge2, height);
-			*/
 		}
 
 		float speed = 0;
@@ -122,13 +80,13 @@ public class Glider extends Object {
 	int history = 16;
 
 	Glob G;
-	Vector2 position;
+	public Vector2 position;
 	List<Vector2> pHistory;
 	Vector2 velocity;
 	Vector2 rotation;
 	List<Vector2> rHistory;
 	Vector2 gravity;
-	int halfWidth;
+	public int halfWidth;
 	float halfHeight;
 	boolean shields = false;
 	float shieldEffect = 0;
@@ -176,6 +134,10 @@ public class Glider extends Object {
 					Math.sqrt(Math.abs(rely)) * Math.signum(rely)));
 	}
 
+	public void resetLives () {
+		lives = 3;
+	}
+
 	public void reset () {
 		// starting position
 		position = new Vector2(G.width / 2, G.height - 60 * G.dpi);
@@ -194,7 +156,7 @@ public class Glider extends Object {
 
 		index = i;
 		HUDx = G.width * (index + 1) / (G.ngliders + 1);
-		HUDColor = new Color(G.antiColor());
+		HUDColor = new Color(G.getAntiColor());
 
 		reset();
 
@@ -284,14 +246,19 @@ public class Glider extends Object {
 		return false;
 	}
 
+	Vector2 vel = new Vector2();
+	Vector2 grav = new Vector2();
+
 	public float tick (float dt) {
 		Vector2 wind = getWindAt(position);
 		Vector2 rot = new Vector2(rotation);
 		rot.rotate90(1);
 
 		// update position and velocity
-		position.add(velocity);
-		velocity.add(gravity);
+		vel.set(velocity).scl(G.settings.speed);
+		position.add(vel);
+		grav.set(gravity).scl(G.settings.speed);
+		velocity.add(grav);
 
 		// keep position in bounds
 		/*
@@ -302,10 +269,10 @@ public class Glider extends Object {
 		// update velocity due to wind
 		Vector2 effectiveWind = wind.add(velocity);
 		float windMagnitude = effectiveWind.dot(rot);
-		velocity.sub(rot.scl(windMagnitude));
+		velocity.sub(rot.scl(windMagnitude * G.settings.speed));
 
 		// control the glider
-		rotation.rotateRad(control() * rotationSpeed);
+		rotation.rotateRad(control() * rotationSpeed * G.settings.speed);
 
 		// decay the powers
 		List<PowerUp> iterList = new ArrayList<PowerUp>(powersUp);
@@ -330,7 +297,9 @@ public class Glider extends Object {
 		}
 
 		effectColor.lerp(gliderColor, 0.02f);
-		HUDColor.lerp(G.antiColor(), 0.02f);
+		Color hc = new Color(G.getAntiColor());
+		hc.a = 0.5f;
+		HUDColor.lerp(hc, 0.02f);
 
 		if (shields && shieldEffect < 1) {
 			shieldEffectStep += 0.005f;
@@ -357,11 +326,17 @@ public class Glider extends Object {
 	public float getTheta () {
 		return rotation.angle();
 	}
+	public Vector2 getVelocity () {
+		return velocity;
+	}
+	public Vector2 getPosition () {
+		return position;
+	}
 
 	Vector2 pos = new Vector2();
 	Vector2 gPos = new Vector2();
 
-	public boolean collideWithAt (int offset, Goody goody) {
+	public boolean collideWithAt (int offset, Goody goody, boolean fx) {
 		Vector2 gPosTmp = goody.getPosition();
 
 		pos.set(position);
@@ -376,7 +351,7 @@ public class Glider extends Object {
 		float gx = Math.abs(gPos.x);
 		float gy = Math.abs(gPos.y);
 
-		boolean doEffect = !shields || goody.getPoints() >= 0;
+		boolean doEffect = fx && (!shields || goody.getPoints() >= 0);
 		if (halfWidth > gx && goody.getRadius() + halfHeight > gy) {
 			if (doEffect)
 				effects.add(new Effect(gPos.x, halfWidth, goody.getColor()));
@@ -398,17 +373,45 @@ public class Glider extends Object {
 		return false;
 	}
 
-	public boolean collideWith (Goody goody) {
+	public boolean collideWith (Goody goody, boolean fx) {
 		if (!active) return false;
 		if (invulnerable > 0) return false;
 
-		return (collideWithAt(0, goody));
+		return collideWithAt(0, goody, fx);
 
 		/*
 		if (position.x < halfWidth && collideWithAt(G.width, goody)) return true;
 		if (G.width - position.x < halfWidth && collideWithAt(-G.width, goody))
 			return true;
 			*/
+	}
+
+	public boolean below (Vector2 p) {
+		if (position.y > p.y) return false;
+		if (rotation.x == 0) {
+			return position.x + halfHeight > p.x 
+				&& position.x - halfHeight < p.x;
+		}
+
+		float rx = Math.abs(rotation.x);
+		if (position.x + halfWidth * rx < p.x) return false;
+		if (position.x - halfWidth * rx > p.x) return false;
+
+		float slope = rotation.y / rotation.x;
+		float rise = slope * (p.x - position.x);
+		return position.y + rise < p.y;
+	}
+
+	public boolean intersects (Vector2 p, float width) {
+		if (rotation.y == 0) return false;
+		float dy = (p.y - position.y) / rotation.y;
+		if (Math.abs(dy) > Math.abs(rotation.y) * halfWidth) return false;
+		float x = position.x + dy * rotation.x;
+		if (x < p.x + width && x > p.x) {
+			Gdx.app.log("x", "" + x);
+			return true;
+		}
+		return false;
 	}
 
 	public void drawAt (Vector2 loc, float zoom, Color color, boolean light) {
@@ -537,6 +540,14 @@ public class Glider extends Object {
 
 			float factor = 200 / (-position.y + 200);
 			drawAt(new Vector2(position.x, 50.f), factor, color, true);
+		} else if (position.y > G.height + halfWidth) {
+			G.sb.setColor(color);
+			int width = 12 * (int) G.unit;
+			G.sb.draw(G.indicatorTexture,
+					position.x - width / 2, G.height - 2 * G.unit,
+					width, -width/2);
+			float factor = 200 / (position.y - G.height + 200);
+			drawAt(new Vector2(position.x, G.height - 50.f), factor, color, true);
 		}
 	}
 
@@ -548,11 +559,8 @@ public class Glider extends Object {
 		*/
 
 		Color c;
-		if (G.dark()) {
-			c = new Color(1, 1, 1, 1);
-		} else {
-			c = new Color(0, 0, 0, 1);
-		}
+		c = G.getGliderColor();
+		c.a = 1;
 
 		G.sb.begin();
 		draw(c);
@@ -643,7 +651,7 @@ public class Glider extends Object {
 	public void givePoints (int points) {
 		if (points < 0 && shields) return;
 		score += points * multiplier;
-		if (points > 0) comboUp();
+		if (G.settings.normal() && points > 0) comboUp();
 		if (score < 0) score = 0;
 		updateHUD();
 	}
@@ -667,11 +675,9 @@ public class Glider extends Object {
 
 	public void multiplierUp () {
 		multiplier++;
-		if (multiplier >= 4)
-			G.unlock(G.constants.fourEx);
-		if (multiplier >= 8)
-			G.unlock(G.constants.eightEx);
-		if (multiplier >= 16)
+		if (multiplier == 6)
+			G.unlock(G.constants.sixEx);
+		if (multiplier == 12)
 			G.unlock(G.constants.deusEx);
 		updateHUD();
 	}
@@ -683,16 +689,21 @@ public class Glider extends Object {
 	}
 
 	public float multiplierChance () {
-		return (float) (0.04 / (multiplier * multiplier));
+		return (float) (0.1 / multiplier);
 	}
 
 	public void shieldsUp () {
+		shieldsUp(true);
+	}
+	public void shieldsUp (boolean trueShield) {
 		if (!shields) {
 			shields = true;
 			shieldEffect = 0;
 			shieldEffectStep = 0;
 			return;
 		}
+
+		if (! trueShield) return;
 
 		givePoints(10);
 	}
@@ -720,11 +731,14 @@ public class Glider extends Object {
 		missCombo();
 		lives--;
 		damages++;
-		if (lives < 0) G.gameOver();
 
 		multiplier = 1;
 
 		updateHUD();
+	}
+
+	public boolean dead () {
+		return lives < 0;
 	}
 
 	/*

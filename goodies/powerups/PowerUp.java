@@ -23,9 +23,11 @@ public class PowerUp extends Goody {
 	public void powerDown (Glider glider) {
 	}
 
-	public void collide (Glider glider) {
+	public boolean collide (Glider glider) {
 		glider.givePower(this);
 		powerUp(glider);
+
+		return true;
 	}
 
 	public void decay (Glider glider) {

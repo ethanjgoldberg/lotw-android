@@ -70,8 +70,12 @@ public class Glob {
 	public Texture donutTexture;
 	public TextureRegion donutRegion;
 	public Texture indicatorTexture;
+	public Texture angleTexture;
 	int numSnows = 6;
 	public Texture[] snowFlakes;
+	int numLeafs = 2;
+	public Texture[] leafs;
+	public Texture sineTexture;
 	// icons:
 	public Texture backIcon;
 	public Texture playIcon;
@@ -81,6 +85,13 @@ public class Glob {
 	public Texture circleIcon;
 	public Texture dashIcon;
 	public Texture infoIcon;
+	// weather icons:
+	public Texture summerIcon;
+	public Texture fallIcon;
+	public Texture winterIcon;
+	public Texture springIcon;
+	public Texture spaceIcon;
+	public Texture oceanIcon;
 	// logo:
 	public Texture leafLogo;
 	public Texture playWrite;
@@ -104,8 +115,17 @@ public class Glob {
 
 	public Colors colors = new Colors();
 
-	public void resetGlider () {
+	public void startGame () {
 		glider = new Glider(this, 0);
+		resetGoodies();
+	}
+
+	public void resetGlider () {
+		if (glider == null) startGame();
+		glider.reset();
+	}
+
+	public void resetGoodies () {
 		vx = 0;
 		goodies.clear();
 	}
@@ -143,15 +163,17 @@ public class Glob {
 		width = Gdx.graphics.getWidth();
 		height = Gdx.graphics.getHeight();
 		sr = new ShapeRenderer();
-		settings = new Settings();
-		settings.read();
-		updateBgColor();
 		sb = new SpriteBatch();
 		paused = false;
 		pausing = false;
 		backing = false;
 
 		initTextures();
+		settings = new Settings(this);
+		settings.initSeasons();
+		settings.read();
+		updateBgColor();
+		initBaddy();
 
 		goodies = new Goodies(this);
 
@@ -160,6 +182,7 @@ public class Glob {
 		initStats();
 
 		resetGlider();
+		resetGoodies();
 
 		Gdx.input.setCatchBackKey(true);
 	}
@@ -174,8 +197,8 @@ public class Glob {
 
 	public void initTextures () {
 		lightTexture = image("light.png");
+		lightTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 		goodyTexture = image("lit_goody.png");
-		initBaddy();
 		multiplierTexture = image("flat_multiplier.png");
 		shieldTexture = image("flat_shield.png");
 		starTexture = image("star.png");
@@ -192,8 +215,17 @@ public class Glob {
 		dashIcon = image("icons/dash.png");
 		infoIcon = image("icons/info.png");
 
+		summerIcon = image("icons/summer.png");
+		fallIcon = image("icons/fall.png");
+		winterIcon = image("icons/winter.png");
+		springIcon = image("icons/spring.png");
+		spaceIcon = image("icons/space.png");
+		oceanIcon = image("icons/ocean.png");
+
 		leafLogo = new Texture(Gdx.files.internal("images/leaf_logo_bright.png"));
 		leafLogo.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+		sineTexture = image("sine.png");
+		sineTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 		playWrite = new Texture(Gdx.files.internal("images/playwrite.png"));
 		playWrite.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 		skyTexture = new Texture(Gdx.files.internal("images/sky.png"));
@@ -206,11 +238,19 @@ public class Glob {
 		donutRegion = new TextureRegion(donutTexture);
 		indicatorTexture = new Texture(Gdx.files.internal("images/indicator.png"));
 		indicatorTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+		angleTexture = new Texture(Gdx.files.internal("images/angle.png"));
+		angleTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 
 		snowFlakes = new Texture[numSnows];
 		for (int i = 0; i < numSnows; i++) {
 			snowFlakes[i] = image("snow/" + String.format("%02d", i) + ".png");
 			snowFlakes[i].setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+		}
+
+		leafs = new Texture[numLeafs];
+		for (int i = 0; i < numLeafs; i++) {
+			leafs[i] = image("leafs/" + String.format("%01d", i) + ".png");
+			leafs[i].setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 		}
 	}
 
@@ -266,30 +306,36 @@ public class Glob {
 		settings.save();
 	}
 
+	public void changeSeason (Season s) {
+		settings.setSeason(s);
+		updateBgColor();
+		//settings.saltStars();
+		if (!lotw.playing()) lotw.resetEverything();
+	}
+
 	float vx = 0;
 
 	public void tick () {
-		tick(true);
+		tick(true, true);
 	}
 
-	public void tick (boolean spawn) {
+	public void tick (boolean spawn, boolean glide) {
 		if (!paused) {
 			float dt = Gdx.graphics.getDeltaTime();
 			t += dt;
 			float deltaTime = dt / 0.015f;
 			float dx = glider.tick(deltaTime);
 			float sign = Math.signum(dx - vx);
-			if (glider.closeToTheEdge()) {
-				//don't push me
-				vx = dx;
-			} else {
-				vx += sign * Math.min(1, Math.abs(dx - vx));
-			}
-			if (glider.fellOffTheBottom()) {
+			vx += sign * Math.min(1, Math.abs(dx - vx));
+			if (glider.fellOffTheBottom() || !glide) {
 				vx = 0;
 			}
 			glider.scroll(vx);
 			goodies.tick(deltaTime, spawn, vx);
+			settings.tickStars(dt, dx);
+			if (settings.oldSeason != null)
+				settings.oldSeason.tickStars(dt, dx);
+			if (glider.dead()) gameOver();
 		}
 	}
 
@@ -325,15 +371,38 @@ public class Glob {
 		}
 	}
 
+	public float lastSeason () {
+		if (settings.oldSeason == null) return 0;
+		return (float) Math.max(0, 1 - (t - lastSeasonChange) / (seasonChangeDeltaT / 4));
+	}
+
+	public Color getGliderColor () {
+		float ls = lastSeason();
+		Color ret = new Color(settings.getGliderColor());
+		if (ls > 0) {
+			ret.lerp(settings.oldSeason.getGliderColor(), ls);
+		}
+		return ret;
+	}
+
 	public void clear () {
 		updateBgColor();
-		Color bg = bgColor;
+		Color bg = new Color(bgColor);
+
+		float ls = lastSeason();
+		if (ls > 0) bg.lerp(settings.oldSeason.getColor(), ls);
+
 		Gdx.gl.glClearColor(bg.r, bg.g, bg.b, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		
 		sb.begin();
-		sb.setColor(1, 1, 1, .1f);
-		sb.draw(skyTexture, 0, -60, width, height + 60);
+		sb.setColor(1, 1, 1, 1 - ls);
+		settings.drawBackground();
+		if (ls > 0) {
+			sb.setColor(new Color(1, 1, 1, ls));
+			settings.oldSeason.drawBackground();
+			Color c = new Color(settings.oldSeason.getColor());
+		}
 		sb.end();
 
 		/*
@@ -350,7 +419,20 @@ public class Glob {
 
 	public void draw () {
 		fixTransparency();
-		goodies.drawStars();
+		sb.begin();
+		Color tmp = sb.getColor();
+		float ls = lastSeason();
+		if (ls > 0) {
+			sb.setColor(new Color(1, 1, 1, 1 - ls));
+			settings.drawStars();
+			sb.setColor(new Color(1, 1, 1, ls));
+			settings.oldSeason.drawStars();
+		} else {
+			sb.setColor(new Color(1, 1, 1, 1));
+			settings.drawStars();
+		}
+		sb.setColor(tmp);
+		sb.end();
 		fixTransparency();
 		glider.draw();
 		fixTransparency();
@@ -382,10 +464,6 @@ public class Glob {
 		lotw.toast(lotw.game, t, 0, 0);
 	}
 
-	public void clean () {
-		goodies.clean();
-	}
-
 	public void unlock (String id) {
 		lotw.actionResolver.unlockAchievementGPGS(id);
 	}
@@ -396,17 +474,17 @@ public class Glob {
 		}
 
 		stats.update(glider);
+		if (stats.totalScore() > 10000)
+			unlock(constants.tenK);
 		if (stats.totalScore() > 100000)
-			unlock(constants.forever);
-		if (stats.totalScore() > 1000000)
-			unlock(constants.eternity);
+			unlock(constants.hundredGrand);
 
 		goodies.clear();
 		lotw.gameOver();
 	}
 
 	public void updateBgColor () {
-		bgColor = settings.bgColor();
+		bgColor = new Color(settings.season.getColor());
 	}
 		
 	/*
@@ -428,34 +506,65 @@ public class Glob {
 	*/
 
 	public boolean dark () {
-		return (bgColor.r + bgColor.g + bgColor.b) < 1.5f;
+		Color c = settings.season.getColor();
+		return (c.r + c.g + c.b) < 1.5f;
 	}
-	Color lightColor = new Color(1, 1, 1, 0.5f);
-	Color darkColor = new Color(0.2f, 0.2f, 0.2f, 0.75f);
-	public Color antiColor () {
-		if (dark()) return lightColor;
-		return darkColor;
+	public Color lightColor = new Color(1, 1, 1, 0.5f);
+	public Color darkColor = new Color(0.2f, 0.2f, 0.2f, 0.75f);
+	Color antiColor;
+	public Color getAntiColor () {
+		if (dark()) antiColor = lightColor;
+		else antiColor = darkColor;
+		return antiColor;
 	}
 
 	public Texture snowFlake () {
 		return snowFlakes[(int) (Math.random() * numSnows)];
 	}
+	public Texture leaf () {
+		return leafs[(int) (Math.random() * numLeafs)];
+	}
 
 	public double newGoodyChance () {
 		return Math.max((Math.sin(t / 2) + 1.5)
 			* settings.diff 
-			* (1 - settings.difficulty / Math.log(Math.max(glider.score, 40) + 
+			* (1 - settings.difficulty / Math.log(Math.max(glider.score, 80)/2 + 
 						(Math.pow(Math.E,
 							  settings.difficulty + 0.01)))),
 			(t - lastGoodyT)/(glider.score > 100? 150: 250));
 	}
 
 	public double greenChance () {
-		return 1 / (1 + Math.log(1 + (float) glider.score/20));
+		return 1 / (1 + Math.log(1 + (float) glider.score/10));
 	}
 
 	public void goodyAdded () {
 		lastGoodyT = t;
+	}
+
+	float lastHellMarker;
+	public boolean timeForHellMarker () {
+		if (t - lastHellMarker > 2) {
+			lastHellMarker = t;
+			return true;
+		}
+		return false;
+	}
+
+	float lastSeasonChange;
+	float seasonChangeDeltaT = 12;
+	public boolean timeForSeasonChange () {
+		if (t - lastSeasonChange > seasonChangeDeltaT) {
+			lastSeasonChange = t;
+			return true;
+		}
+		return false;
+	}
+
+	public void changeSeason () {
+		if (timeForSeasonChange()) {
+			changeSeason(settings.nextSeason());
+		}
 	}
 
 	/*
