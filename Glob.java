@@ -154,11 +154,16 @@ public class Glob {
 			powerSize = 40;
 			lightSize = 64;
 			sizeName = "l";
-		} else {
+		} else if (dpi <= 3) {
 			size = 48;
 			powerSize = 60;
 			lightSize = 96;
 			sizeName = "xl";
+		} else {
+			size = 96;
+			powerSize = 120;
+			lightSize = 192;
+			sizeName = "xxl";
 		}
 
 		//size = (int) Math.pow(2, Math.ceil(Math.log(dpi * 16) / Math.log(2)));

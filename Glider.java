@@ -107,6 +107,7 @@ public class Glider extends Object {
 	public int score = 0;
 	int lives = 3;
 	int damages = 0;
+	int dandelions = 0;
 	int snitches = 0;
 	int combo = 0;
 	int maxCombo = 0;
@@ -731,10 +732,20 @@ public class Glider extends Object {
 		missCombo();
 		lives--;
 		damages++;
+		if (damages == 16)
+			G.unlock(G.constants.reckless);
+		if (damages == 32)
+			G.unlock(G.constants.tank);
 
 		multiplier = 1;
 
 		updateHUD();
+	}
+
+	public void hitDandelion () {
+		dandelions++;
+		if (dandelions == 57)
+			G.unlock(G.constants.nineteenGenies);
 	}
 
 	public boolean dead () {

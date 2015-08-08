@@ -12,6 +12,9 @@ public class Const {
 	public String hundredGrand = "CgkIlZKrv_QXEAIQDg";
 	public String quarterCombo = "CgkIlZKrv_QXEAIQEQ";
 	public String dollarCombo = "CgkIlZKrv_QXEAIQEg";
+	public String reckless = "CgkIlZKrv_QXEAIQFA";
+	public String tank = "CgkIlZKrv_QXEAIQFQ";
+	public String nineteenGenies = "CgkIlZKrv_QXEAIQFg";
 
 	public String scoreBoard = "CgkIlZKrv_QXEAIQBQ";
 	public String hellBoard = "CgkIlZKrv_QXEAIQEw";
