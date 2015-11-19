@@ -32,8 +32,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.NinePatchDrawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
-import com.badlogic.gdx.scenes.scene2d.utils.Align;
-import com.badlogic.gdx.graphics.g2d.BitmapFont.TextBounds;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.graphics.g2d.NinePatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
@@ -314,8 +313,9 @@ public class LOTW extends ApplicationAdapter {
 
 	public Label addLabel (Stage src, String lbl, float cx, float cy, float h, Color c) {
 		Label label = new Label(lbl, new Label.LabelStyle(G.roboto24, G.getAntiColor()));
-		TextBounds tb = label.getTextBounds();
-		label.setPosition(G.width/2 + cx * dpi - tb.width/2, G.height/2 + cy * dpi - h * dpi/2 - tb.height / 2);
+		float wide = label.getWidth();
+		float tall = label.getHeight();
+		label.setPosition(G.width/2 + cx * dpi - wide/2, G.height/2 + cy * dpi - h * dpi/2 - tall/2);
 		label.setAlignment(Align.bottom | Align.center);
 		label.setColor(c);
 
@@ -378,16 +378,14 @@ public class LOTW extends ApplicationAdapter {
 		super.dispose();
 	}
 
-	TextButton loginButton;
-
 	public void login () {
-		if (loginButton != null) {
+		if (logButton != null) {
 			logButton.setText("Sign Out");
 		}
 	}
 
 	public void logout () {
-		if (loginButton != null) {
+		if (logButton != null) {
 			logButton.setText("Sign In");
 		}
 	}
@@ -690,9 +688,6 @@ public class LOTW extends ApplicationAdapter {
 		});
 		logButton.setWidth(184 * dpi);
 		logButton.setHeight(88 * dpi);
-		/*logButton.setPosition(G.width/2 - 188 * dpi,
-				G.height/2 - 92*dpi);
-		*/
 		logButton.setColor(G.colors.grey);
 		logButton.getImage().setColor(fullAnti);
 		//settings.addActor(logButton);
@@ -943,119 +938,6 @@ public class LOTW extends ApplicationAdapter {
 		aboutBackButton.setColor(G.colors.red);
 		about.addActor(aboutTable);
 		about.addActor(aboutBackButton);
-
-		/*
-		TextButton statsButton = new TextButton("Statistics", textButtonStyle);
-		statsButton.setWidth(192 * dpi);
-		statsButton.setHeight(40f * dpi);
-		statsButton.setPosition(G.width / 2 - statsButton.getWidth() / 2,
-				G.height / 2 - 68f * dpi);
-		statsButton.addListener(new ClickListener () {
-			@Override
-			public void clicked (InputEvent e, float x, float y) {
-				seeStats();
-				setStage(statistics);
-			}
-		});
-		settings.addActor(statsButton);
-
-		TextButton leaderButton = new TextButton("Leaderboard", textButtonStyle);
-		leaderButton.setWidth(192 * dpi);
-		leaderButton.setHeight(40f * dpi);
-		leaderButton.setPosition(G.width / 2 - leaderButton.getWidth() / 2,
-				G.height / 2 - 164f * dpi);
-		leaderButton.addListener(new ClickListener () {
-			@Override
-			public void clicked (InputEvent e, float x, float y) {
-				actionResolver.getLeaderboardGPGS(G.constants.scoreBoard);
-			}
-		});
-		settings.addActor(leaderButton);
-
-		TextButton achieveButton = new TextButton("Achievements", textButtonStyle);
-		achieveButton.setWidth(192 * dpi);
-		achieveButton.setHeight(40f * dpi);
-		achieveButton.setPosition(G.width / 2 - leaderButton.getWidth() / 2,
-				G.height / 2 - 116f * dpi);
-		achieveButton.addListener(new ClickListener () {
-			@Override
-			public void clicked (InputEvent e, float x, float y) {
-				actionResolver.getAchievementsGPGS();
-			}
-		});
-		settings.addActor(achieveButton);
-		*/
-
-		/*
-		loginButton = new TextButton("Sign In", textButtonStyle);
-		loginButton.setWidth(G.width / 3);
-		loginButton.setHeight(40f);
-		loginButton.setPosition(G.width / 2 - loginButton.getWidth() / 2, 164f);
-		loginButton.addListener(new ClickListener () {
-			@Override
-			public void clicked (InputEvent e, float x, float y) {
-				if (actionResolver.getSignedInGPGS()) {
-					actionResolver.logoutGPGS();
-				} else {
-					actionResolver.loginGPGS();
-				}
-			}
-		});
-		settings.addActor(loginButton);
-		*/
-
-		//addButton(settings, game, "Start Game", 0, -G.height/2 + 88f, G.width/3, 40f);
-		//addButton(settings, instructions, "Back", 0, -192f, 192, 40f);
-		/*
-		final Label modeLabel = addLabel(settings, "Normal: collect and dodge.", 0, -48f, 0f);
-
-		TextButton hellMode = new TextButton("Hell", textButtonStyle);
-		hellMode.addListener(new ClickListener() {
-				@Override
-				public void clicked (InputEvent e, float x, float y) {
-					G.settings.setMode(-1);
-					modeLabel.setText("Hell: dodge.");
-				}
-			});
-		hellMode.setHeight(40);
-		hellMode.setWidth(88);
-		hellMode.setPosition(G.width / 2 - 144, G.height / 2 - 20);
-
-		TextButton normalMode = new TextButton("Normal", textButtonStyle);
-		normalMode.addListener(new ClickListener() {
-				@Override
-				public void clicked (InputEvent e, float x, float y) {
-					G.settings.setMode(0);
-					modeLabel.setText("Normal: collect and dodge.");
-				}
-			});
-		normalMode.setHeight(40);
-		normalMode.setWidth(88);
-		normalMode.setPosition(G.width / 2 - 48, G.height / 2 - 20);
-
-		TextButton heavenMode = new TextButton("Pokemon", textButtonStyle);
-		heavenMode.addListener(new ClickListener() {
-				@Override
-				public void clicked (InputEvent e, float x, float y) {
-					G.settings.setMode(1);
-					modeLabel.setText("Pokemon: gotta catch 'em all!");
-				}
-			});
-		heavenMode.setHeight(40);
-		heavenMode.setWidth(88);
-		heavenMode.setPosition(G.width / 2 + 48, G.height / 2 - 20);
-
-		normalMode.setChecked(true);
-
-		ButtonGroup bg = new ButtonGroup(hellMode, normalMode, heavenMode);
-		bg.setMaxCheckCount(1);
-		bg.setMinCheckCount(1);
-		bg.setUncheckLast(true);
-
-		settings.addActor(hellMode);
-		settings.addActor(normalMode);
-		settings.addActor(heavenMode);
-		*/
 
 		// instructions:
 		

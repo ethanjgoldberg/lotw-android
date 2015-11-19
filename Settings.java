@@ -19,6 +19,7 @@ import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
 import org.anism.lotw.Mode;
@@ -33,6 +34,7 @@ public class Settings extends Object {
 		if (season == s) return false;
 		oldSeason = season;
 		season = s;
+		season.playMusic();
 		String val = s.toString();
 		seasonVal = Seasons.valueOf(val.toUpperCase());
 		if (unlock && seasonIndex(seasonVal) > seasonLock) {
@@ -72,6 +74,8 @@ public class Settings extends Object {
 		public int numStars;
 		public Star[] stars;
 		Stack<Integer> blankStars;
+
+	    Music music = null;
 
 		int makeExtra = 4;
 		int extraWidth = makeExtra * 2 + 1;
@@ -189,6 +193,14 @@ public class Settings extends Object {
 			G.sb.setColor(tmp);
 		}
 
+	    public void playMusic () {
+		Gdx.app.log("hi", "play");
+		Gdx.app.log("music", "" + music);
+		if (music != null) {
+		    music.play();
+		}
+	    }
+	    
 		public String toString () {
 			return name;
 		}
@@ -234,6 +246,7 @@ public class Settings extends Object {
 			gliderColor = new Color(G.darkColor);
 			name = "Summer";
 			icon = G.summerIcon;
+			music = G.summerTheme;
 		}
 
 		public Summer () {
@@ -296,6 +309,53 @@ public class Settings extends Object {
 			return new Snow(G, p);
 		}
 	}
+
+    class Ocean extends Space {
+	Vector3 sun = new Vector3(0, 1, 0);
+	Vector3 facing = new Vector3(0, 1, 0);
+	Color skyColor;
+
+	public void init () {
+	    starChance = 0f;
+	    starVel = 0f;
+	    name = "Ocean";
+	    gliderColor = new Color(1, 1, 1, 1);
+	    icon = G.oceanIcon;
+	    music = G.summerTheme;
+
+	    skyColor = new Color(.7f, .7f, 1, 1);
+	    color = skyColor;
+	}
+
+	public void drawStars () {
+	}
+
+	public Color getColor () {
+	    return skyColor;
+	}
+
+	public Ocean () {
+	    super();
+	}
+
+	public void drawCircleAt (float x, float y, float r, Color c) {
+	    G.sb.setColor(c);
+	    G.sb.draw(G.lightTexture, x - r/2, y - r/2, r, r);
+	}
+	
+	public void drawSunAt (float x, float y) {
+	    drawCircleAt(x, y, 270, new Color(1, .8f, .7f, .7f));
+	    drawCircleAt(x, y, 90, new Color(1, .9f, .8f, .8f));
+	    drawCircleAt(x, y, 60, new Color(1, 1, .9f, .9f));
+	    drawCircleAt(x, y, 40, new Color(1, 1, 1, 1));
+	}
+
+	public void drawBackground () {
+	    drawSunAt(G.width / 2, G.height / 2);
+	}
+    }
+
+
 	class Spring extends Space {
 		float offset = 0;
 		Color defColor;
@@ -382,15 +442,15 @@ public class Settings extends Object {
 	}
 	public Season[] getUnlockedSeasons () {
 		if (unlockSeason == null) unlockSeason = new Unlock();
-		Season[] ret = new Season[seasonLock + 1];
+		Season[] ret = new Season[seasonLock + 1 + 1];
 		ret[0] = unlockSeason;
-		for (int i = 1; i < seasonLock + 1; i++) {
+		for (int i = 1; i < seasonLock + 1 + 1; i++) {
 			ret[i] = seasons[i-1];
 		}
 		return ret;
 	}
 	enum Seasons {
-		SUMMER, FALL, WINTER, SPRING, SPACE;
+	    SUMMER, FALL, WINTER, SPRING, SPACE, OCEAN;
 	}
 	Glob G;
 	public ControlScheme controlScheme;
@@ -422,6 +482,7 @@ public class Settings extends Object {
 			    new Winter(),
 			    new Spring(), 
 			    new Space(),
+			new Ocean(),
 		};
 	}
 
@@ -464,12 +525,15 @@ public class Settings extends Object {
 			return 3;
 		if (val == Seasons.SPACE)
 			return 4;
+		if (val == Seasons.OCEAN)
+		    return 5;
 		return -1;
 	}
 
 	public void initSeason () {
 		Gdx.app.log("", unlock + " " + seasonVal);
 		season = seasons[seasonIndex()];
+		season.playMusic();
 	}
 	public Season nextSeason () {
 		if (seasonVal == Seasons.SUMMER)

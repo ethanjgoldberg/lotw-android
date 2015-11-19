@@ -16,7 +16,9 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.Input.Keys;
-import com.badlogic.gdx.graphics.g2d.BitmapFont.TextBounds;
+import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.audio.Sound;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 
 import org.anism.lotw.Glider;
 import org.anism.lotw.Settings;
@@ -46,6 +48,17 @@ public class Glob {
 	public boolean pausing;
 	public boolean backing;
 
+	// sounds:
+	public Music summerTheme;
+	public Sound[] greenSounds;
+	public Sound fshtSound;
+	public Sound twangSound;
+	public Sound badSound;
+	public Sound multiplierSound;
+	public Sound healSound;
+	public Sound shieldSound;
+	public int greenSoundIndex;
+	
 	// fonts:
 	public BitmapFont roboto16;
 	public BitmapFont roboto24;
@@ -73,8 +86,6 @@ public class Glob {
 	public Texture angleTexture;
 	int numSnows = 6;
 	public Texture[] snowFlakes;
-	int numLeafs = 2;
-	public Texture[] leafs;
 	public Texture sineTexture;
 	// icons:
 	public Texture backIcon;
@@ -179,6 +190,7 @@ public class Glob {
 		backing = false;
 
 		initTextures();
+		initSounds();
 		settings = new Settings(this);
 		settings.initSeasons();
 		settings.read();
@@ -257,12 +269,67 @@ public class Glob {
 			snowFlakes[i] = image("snow/" + String.format("%02d", i) + ".png");
 			snowFlakes[i].setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 		}
+	}
 
-		leafs = new Texture[numLeafs];
-		for (int i = 0; i < numLeafs; i++) {
-			leafs[i] = image("leafs/" + String.format("%01d", i) + ".png");
-			leafs[i].setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+	public void initSounds () {
+	    /*
+		summerTheme = Gdx.audio.newMusic(Gdx.files.internal("sounds/summer_theme.2.1.ogg"));
+		summerTheme.setLooping(true);
+		greenSounds = new Sound[4];
+		for (int i = 0; i < 3; i++) {
+			greenSounds[i] = Gdx.audio.newSound(Gdx.files.internal("sounds/drip" + (i+1) + ".ogg"));
 		}
+		greenSounds[3] = Gdx.audio.newSound(Gdx.files.internal("sounds/prize.ogg"));
+		greenSoundIndex = 0;
+		fshtSound = Gdx.audio.newSound(Gdx.files.internal("sounds/Fsht3.ogg"));
+		twangSound = Gdx.audio.newSound(Gdx.files.internal("sounds/stem.ogg"));
+		badSound = Gdx.audio.newSound(Gdx.files.internal("sounds/bad2.ogg"));
+		multiplierSound = Gdx.audio.newSound(Gdx.files.internal("sounds/multiply.ogg"));
+		shieldSound = Gdx.audio.newSound(Gdx.files.internal("sounds/shield.ogg"));
+		healSound = Gdx.audio.newSound(Gdx.files.internal("sounds/healing.ogg"));
+	    */
+	}
+
+	public void dandelionFX (float v) {
+	    //fshtSound.play((float) Math.min(1, v + 0.01));
+	}
+	public void twangFX (float v) {
+	    //twangSound.play(1);
+	}
+	
+	public void catchGreenFX () {
+	    /*
+		greenSounds[greenSoundIndex].play(1f);
+		greenSoundIndex++;
+		if (greenSoundIndex >= greenSounds.length)
+			greenSoundIndex = 0;
+	    */
+	}
+
+	public void catchRedFX () {
+	    /*
+		badSound.play(1);
+		greenSoundIndex = 0;
+	    */
+	}
+	public void catchShieldFX () {
+	    /*
+		catchGreenFX();
+		shieldSound.play(1);
+	    */
+	}
+	public void catchMultiplierFX () {
+	    /*
+		catchGreenFX();
+		multiplierSound.play(1);
+	    */
+	}
+
+	public void catchBlueFX () {
+	    /*
+		catchGreenFX();
+		healSound.play(1);
+	    */
 	}
 
 	public void initFonts () {
@@ -343,9 +410,9 @@ public class Glob {
 			}
 			glider.scroll(vx);
 			goodies.tick(deltaTime, spawn, vx);
-			settings.tickStars(dt, dx);
+			settings.tickStars(dt, vx);
 			if (settings.oldSeason != null)
-				settings.oldSeason.tickStars(dt, dx);
+				settings.oldSeason.tickStars(dt, vx);
 			if (glider.dead()) gameOver();
 		}
 	}
@@ -464,7 +531,7 @@ public class Glob {
 		sr.rect(width / 4 - 48*dpi, height / 2 - 144*dpi, width / 2 + 96*dpi, 288 * dpi);
 		sr.end();
 
-		TextBounds bounds = roboto24.getBounds("Paused");
+		GlyphLayout bounds = new GlyphLayout(roboto24, "Paused");
 		sb.begin();
 		roboto24.draw(sb, "Paused", width/2 - bounds.width/2,
 				48*dpi + height/2 + bounds.height/2);
@@ -533,9 +600,6 @@ public class Glob {
 	public Texture snowFlake () {
 		return snowFlakes[(int) (Math.random() * numSnows)];
 	}
-	public Texture leaf () {
-		return leafs[(int) (Math.random() * numLeafs)];
-	}
 
 	public double newGoodyChance () {
 		return Math.max((Math.sin(t / 2) + 1.5)
@@ -565,7 +629,7 @@ public class Glob {
 
 	int lastSeasonChange = 0;
 	float lastSeasonChangeT = 0.0f;
-	int seasonChangeDelta = 250;
+	int seasonChangeDelta = 200;
 	int spaceScore = seasonChangeDelta * 4;
 	public void changeSeason () {
 		if (settings.unlock && glider.score - lastSeasonChange >= seasonChangeDelta) {

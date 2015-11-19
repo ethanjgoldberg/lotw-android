@@ -12,7 +12,7 @@ import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g2d.BitmapFont.TextBounds;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.BitmapFontCache;
 import com.badlogic.gdx.graphics.glutils.FrameBuffer;
 import com.badlogic.gdx.graphics.Texture;
@@ -568,16 +568,19 @@ public class Glider extends Object {
 		G.sb.end();
 	}
 
+    GlyphLayout scoreBounds = new GlyphLayout();
+    GlyphLayout multiplierBounds = new GlyphLayout();
+    
 	public void updateHUD () {
 		float x = HUDx;
 
 		String scoreString = Integer.toString(score);
-		TextBounds scoreBounds = G.roboto96.getBounds(scoreString);
+		scoreBounds.setText(G.roboto96, scoreString);
 		scoreWidth = scoreBounds.width;
 		scoreHeight = scoreBounds.height;
 
 		String multiplierString = "x" + multiplier;
-		TextBounds multiplierBounds = G.roboto24.getBounds(multiplierString);
+		multiplierBounds.setText(G.roboto24, multiplierString);
 		multiplierWidth = multiplierBounds.width;
 		multiplierHeight = multiplierBounds.height;
 
@@ -662,6 +665,7 @@ public class Glider extends Object {
 	}
 
 	public void comboUp () {
+	    G.catchGreenFX();
 		combo++;
 		if (combo >= 3) {
 			G.toastCombo(combo + " combo");
@@ -676,6 +680,7 @@ public class Glider extends Object {
 
 	public void multiplierUp () {
 		multiplier++;
+		G.catchMultiplierFX();
 		if (multiplier == 6)
 			G.unlock(G.constants.sixEx);
 		if (multiplier == 12)
@@ -694,6 +699,7 @@ public class Glider extends Object {
 	}
 
 	public void shieldsUp () {
+	    G.catchShieldFX();
 		shieldsUp(true);
 	}
 	public void shieldsUp (boolean trueShield) {
@@ -710,6 +716,7 @@ public class Glider extends Object {
 	}
 
 	public void oneUp () {
+	    G.catchBlueFX();
 		lives++;
 		updateHUD();
 	}
@@ -728,6 +735,8 @@ public class Glider extends Object {
 			shields = false;
 			return;
 		}
+
+		G.catchRedFX();
 
 		missCombo();
 		lives--;
